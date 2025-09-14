@@ -1,1 +1,22 @@
-npm run lint && npm run test && npm run test:e2e
+echo "Запуск проверки кода (lint)..."
+npm run lint
+if [ $? -ne 0 ]; then
+  echo "Ошибки линтинга! Коммит отклонён."
+  exit 1
+fi
+
+echo "Запуск unit-тестов..."
+npm run test
+if [ $? -ne 0 ]; then
+  echo "Unit-тесты не пройдены! Коммит отклонён."
+  exit 1
+fi
+
+echo "Запуск e2e-тестов..."
+npm run test:e2e
+if [ $? -ne 0 ]; then
+  echo "E2E-тесты не пройдены! Коммит отклонён."
+  exit 1
+fi
+
+echo "Все проверки пройдены успешно. Продолжаем коммит."
