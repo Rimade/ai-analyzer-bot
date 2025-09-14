@@ -1,0 +1,81 @@
+// =============== Initialize Prisma Client ===============
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============== Enums ===============
+
+enum AnalysisType {
+  MERCH
+  FOOD
+  CHARACTER
+  GENERAL
+}
+
+enum SubStatus {
+  ACTIVE
+  INACTIVE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// =============== Models ===============
+
+model User {
+  id           Int           @id @default(autoincrement())
+  telegramId   String        @unique // ID из Telegram
+  username     String? // @username
+  firstName    String?
+  lastName     String?
+  isPro        Boolean       @default(false) // Подписка активна?
+  freeAttempts Int           @default(5) // Остаток бесплатных GPT анализов
+  subscription Subscription?
+  analyses     Analysis[] // История анализов
+  payments     Payment[] // История платежей
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Analysis {
+  id          Int          @id @default(autoincrement())
+  user        User         @relation(fields: [userId], references: [id])
+  userId      Int
+  type        AnalysisType // merch | food | character ...
+  inputFileId String // file_id из Telegram
+  inputUrl    String? // ссылка на фото (если скачиваем)
+  resultText  String // итоговый анализ
+  score       Int? // 0–10, если применимо
+  createdAt   DateTime     @default(now())
+}
+
+model Subscription {
+  id        Int       @id @default(autoincrement())
+  user      User      @relation(fields: [userId], references: [id])
+  userId    Int       @unique
+  status    SubStatus @default(ACTIVE)
+  startedAt DateTime  @default(now())
+  expiresAt DateTime?
+}
+
+model Payment {
+  id        Int           @id @default(autoincrement())
+  user      User          @relation(fields: [userId], references: [id])
+  userId    Int
+  provider  String // yookassa | stripe
+  amount    Float
+  currency  String        @default("RUB")
+  status    PaymentStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+}
