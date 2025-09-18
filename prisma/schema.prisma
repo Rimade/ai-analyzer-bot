@@ -54,6 +54,7 @@ model Analysis {
   type        AnalysisType // merch | food | character ...
   inputFileId String // file_id из Telegram
   inputUrl    String? // ссылка на фото (если скачиваем)
+  note        String? // Опциональный комментарий пользователя
   resultText  String // итоговый анализ
   score       Int? // 0–10, если применимо
   createdAt   DateTime     @default(now())
@@ -69,12 +70,13 @@ model Subscription {
 }
 
 model Payment {
-  id        Int           @id @default(autoincrement())
-  user      User          @relation(fields: [userId], references: [id])
-  userId    Int
-  provider  String // yookassa | stripe
-  amount    Float
-  currency  String        @default("RUB")
-  status    PaymentStatus @default(PENDING)
-  createdAt DateTime      @default(now())
+  id          Int           @id @default(autoincrement())
+  user        User          @relation(fields: [userId], references: [id])
+  userId      Int
+  provider    String // yookassa | stripe
+  externalId  String? // ID платежа в внешней системе
+  amount      Float
+  currency    String        @default("RUB")
+  status      PaymentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
 }
