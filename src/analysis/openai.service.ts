@@ -33,11 +33,11 @@ export class OpenAIService {
 
     try {
       const prompt = this.buildPrompt(analysisType, userNote);
-      
+
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -86,7 +86,9 @@ export class OpenAIService {
    * Построить промпт для анализа в зависимости от типа
    */
   private buildPrompt(analysisType: AnalysisType, userNote?: string): string {
-    const basePrompt = userNote ? `Дополнительная информация от пользователя: "${userNote}"\n\n` : '';
+    const basePrompt = userNote
+      ? `Дополнительная информация от пользователя: "${userNote}"\n\n`
+      : '';
 
     switch (analysisType) {
       case AnalysisType.MERCH:
@@ -96,7 +98,7 @@ export class OpenAIService {
         return `${basePrompt}Проанализируй это блюдо. Оцени презентацию, аппетитность, качество подачи по шкале от 0 до 10. Дай рекомендации по улучшению. Формат ответа: ОЦЕНКА: [число] АНАЛИЗ: [подробный текст]`;
 
       case AnalysisType.CHARACTER:
-        return `${basePrompt}Проанализируй этого персонажа/человека. Оцени стиль, харизму, общее впечатление по ш��але от 0 до 10. Дай рекомендации. Формат ответа: ОЦЕНКА: [число] АНАЛИЗ: [подробный текст]`;
+        return `${basePrompt}Проанализируй этого персонажа/человека. Оцени стиль, харизму, общее впечатление по шкале от 0 до 10. Дай рекомендации. Формат ответа: ОЦЕНКА: [число] АНАЛИЗ: [подробный текст]`;
 
       case AnalysisType.GENERAL:
       default:
@@ -107,7 +109,10 @@ export class OpenAIService {
   /**
    * Парсинг результата анализа
    */
-  private parseAnalysisResult(content: string, analysisType: AnalysisType): AnalysisResult {
+  private parseAnalysisResult(
+    content: string,
+    analysisType: AnalysisType,
+  ): AnalysisResult {
     // Ищем оценку в формате "ОЦЕНКА: X"
     const scoreMatch = content.match(/ОЦЕНКА:\s*(\d+)/i);
     const score = scoreMatch ? parseInt(scoreMatch[1]) : undefined;

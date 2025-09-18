@@ -45,17 +45,20 @@ export class AnalysisService {
     });
 
     // Запускаем анализ асинхронно
-    this.processAnalysis(analysis.id, imageUrl || fileId, type, userNote, userId)
-      .catch((error) => {
+    this.processAnalysis(analysis.id, imageUrl || fileId, type, userNote, userId).catch(
+      (error) => {
         console.error(`Ошибка при обработке анализа ${analysis.id}:`, error);
         // Обновляем запись с ошибкой
-        this.prisma.analysis.update({
-          where: { id: analysis.id },
-          data: {
-            resultText: 'Произошла ошибка при анализе изображения. Попробуйте позже.',
-          },
-        }).catch(console.error);
-      });
+        this.prisma.analysis
+          .update({
+            where: { id: analysis.id },
+            data: {
+              resultText: 'Произошла ошибка при анализе изображения. Попробуйте позже.',
+            },
+          })
+          .catch(console.error);
+      },
+    );
 
     return analysis;
   }
@@ -72,11 +75,7 @@ export class AnalysisService {
   ): Promise<void> {
     try {
       // Получаем результат анализа от OpenAI
-      const result = await this.openaiService.analyzeImage(
-        imageSource,
-        type,
-        userNote,
-      );
+      const result = await this.openaiService.analyzeImage(imageSource, type, userNote);
 
       // Обновляем запись анализа
       await this.prisma.analysis.update({
@@ -120,11 +119,7 @@ export class AnalysisService {
   /**
    * Получить историю анализов пользователя
    */
-  async getUserAnalyses(
-    userId: number,
-    limit = 10,
-    offset = 0,
-  ): Promise<Analysis[]> {
+  async getUserAnalyses(userId: number, limit = 10, offset = 0): Promise<Analysis[]> {
     return this.prisma.analysis.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -150,18 +145,23 @@ export class AnalysisService {
     });
 
     const total = analyses.length;
-    const byType = analyses.reduce((acc, analysis) => {
-      acc[analysis.type] = (acc[analysis.type] || 0) + 1;
-      return acc;
-    }, {} as Record<AnalysisType, number>);
+    const byType = analyses.reduce(
+      (acc, analysis) => {
+        acc[analysis.type] = (acc[analysis.type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<AnalysisType, number>,
+    );
 
     const scoresWithValues = analyses
-      .map(a => a.score)
+      .map((a) => a.score)
       .filter((score): score is number => score !== null);
-    
-    const averageScore = scoresWithValues.length > 0
-      ? scoresWithValues.reduce((sum, score) => sum + score, 0) / scoresWithValues.length
-      : null;
+
+    const averageScore =
+      scoresWithValues.length > 0
+        ? scoresWithValues.reduce((sum, score) => sum + score, 0) /
+          scoresWithValues.length
+        : null;
 
     return {
       total,

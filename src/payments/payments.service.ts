@@ -32,7 +32,7 @@ export class PaymentsService {
   }
 
   /**
-   * Создать новы�� платеж
+   * Создать новый платеж
    */
   async createPayment(dto: CreatePaymentDto): Promise<PaymentResult> {
     // Создаем запись платежа в БД
@@ -67,7 +67,7 @@ export class PaymentsService {
       };
     } catch (error) {
       console.error('Ошибка при создании платежа:', error);
-      
+
       // Обновляем статус платежа на FAILED
       await this.prisma.payment.update({
         where: { id: payment.id },
@@ -124,7 +124,9 @@ export class PaymentsService {
     // Если платеж успешен, активируем Pro подписку
     if (status === PaymentStatus.SUCCESS) {
       await this.usersService.activateProSubscription(payment.userId);
-      console.log(`Pro подписка активирована для пользователя ${payment.userId} после платежа ${paymentId}`);
+      console.log(
+        `Pro подписка активирована для пользователя ${payment.userId} после платежа ${paymentId}`,
+      );
     }
   }
 

@@ -9,7 +9,7 @@ export class AnalysisController {
   @Get(':id')
   async getById(@Param('id') id: string) {
     return this.analysisService.getAnalysisById(Number(id));
-    }
+  }
 
   @Get('user/:userId')
   async getUserAnalyses(

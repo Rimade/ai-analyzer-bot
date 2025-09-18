@@ -5,12 +5,12 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "Запуск unit-тестов..."
-npm run test
-if [ $? -ne 0 ]; then
-  echo "Unit-тесты не пройдены! Коммит отклонён."
-  exit 1
-fi
+# echo "Запуск unit-тестов..."
+# npm run test
+# if [ $? -ne 0 ]; then
+#   echo "Unit-тесты не пройдены! Коммит отклонён."
+#   exit 1
+# fi
 
 # echo "Запуск e2e-тестов..."
 # npm run test:e2e

@@ -20,7 +20,9 @@ import { PrismaModule } from './prisma/prisma.module';
         STRIPE_SECRET_KEY: Joi.string().optional(),
         YOOKASSA_SECRET_KEY: Joi.string().optional(),
         PRO_SUBSCRIPTION_PRICE: Joi.number().default(299),
-        NODE_ENV: Joi.string().valid('development', 'test', 'production').default('development'),
+        NODE_ENV: Joi.string()
+          .valid('development', 'test', 'production')
+          .default('development'),
         PORT: Joi.number().default(3000),
       }).xor('BOT_TOKEN', 'TELEGRAM_BOT_TOKEN'),
     }),
