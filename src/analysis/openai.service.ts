@@ -19,6 +19,23 @@ export class OpenAIService {
     }
   }
 
+  async fetchWithRetry(
+    url: string,
+    options: any,
+    retries = 3,
+    delay = 1000,
+  ): Promise<Response> {
+    for (let i = 0; i < retries; i++) {
+      const response = await fetch(url, options);
+      if (response.status !== 429) return response;
+
+      console.warn(`429 Too Many Requests. Retry ${i + 1}/${retries} через ${delay}мс`);
+      await new Promise((res) => setTimeout(res, delay));
+      delay *= 2;
+    }
+    throw new Error('Превышен лимит попыток после 429');
+  }
+
   /**
    * Анализ изображения с помощью GPT-4 Vision
    */
@@ -34,14 +51,14 @@ export class OpenAIService {
     try {
       const prompt = this.buildPrompt(analysisType, userNote);
 
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      const response = await this.fetchWithRetry(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4-vision-preview',
+          model: 'gpt-4o',
           messages: [
             {
               role: 'user',

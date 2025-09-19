@@ -33,6 +33,7 @@ export class AnalysisService {
     }
 
     // Создаем запись анализа со статусом "в процессе"
+    console.log('Creating analysis with type:', type, 'typeof type:', typeof type); // Debug log
     const analysis = await this.prisma.analysis.create({
       data: {
         userId,

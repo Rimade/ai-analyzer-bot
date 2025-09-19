@@ -119,12 +119,21 @@ export class TelegramService implements OnModuleInit {
       if (!data) return;
       const userId = typedCtx.from.id.toString();
 
+      const startTime = Date.now();
+      console.log(
+        `[CALLBACK_START] Query ID: ${typedCtx.callbackQuery.id}, Data: ${data}, Time: ${startTime}`,
+      );
+
+      const userTime = Date.now();
       try {
         await this.usersService.findOrCreateUser(
           userId,
           typedCtx.from.username,
           typedCtx.from.first_name,
           typedCtx.from.last_name,
+        );
+        console.log(
+          `[CALLBACK_USER] After findOrCreateUser, elapsed: ${Date.now() - userTime}ms, total: ${Date.now() - startTime}ms`,
         );
       } catch (e) {
         console.error('Error in callback', e);
@@ -133,6 +142,7 @@ export class TelegramService implements OnModuleInit {
       }
 
       if (data === 'main_menu') {
+        const menuTime = Date.now();
         await typedCtx.editMessageText(
           '<b>🔥 Главное меню AI Analyzer</b>\n\nВыберите действие:',
           {
@@ -140,7 +150,11 @@ export class TelegramService implements OnModuleInit {
             ...this.getMainMenu(),
           },
         );
+        console.log(
+          `[CALLBACK_MENU] After editMessageText for main_menu, elapsed: ${Date.now() - menuTime}ms, total: ${Date.now() - startTime}ms`,
+        );
       } else if (data === 'analyze') {
+        const analyzeTime = Date.now();
         await typedCtx.editMessageText(
           '<b>🔍 Выберите тип анализа</b>\n\n' +
             'Отправьте фото после выбора типа. Можно добавить заметку в подпись.',
@@ -149,9 +163,14 @@ export class TelegramService implements OnModuleInit {
             ...this.getAnalysisTypesMenu(),
           },
         );
+        console.log(
+          `[CALLBACK_ANALYZE] After editMessageText for analyze, elapsed: ${Date.now() - analyzeTime}ms, total: ${Date.now() - startTime}ms`,
+        );
       } else if (data.startsWith('type_')) {
+        const typeTime = Date.now();
         const typeStr = data.replace('type_', '');
-        const type = typeStr as AnalysisType;
+        const upperType = typeStr.toUpperCase() as keyof typeof AnalysisType;
+        const type = AnalysisType[upperType] || AnalysisType.GENERAL;
         typedCtx.session.selectedType = type;
         await typedCtx.editMessageText(
           `<b>✅ Тип выбран: ${type}</b>\n\n` +
@@ -162,11 +181,19 @@ export class TelegramService implements OnModuleInit {
             ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Назад', 'analyze')]]),
           },
         );
+        console.log(
+          `[CALLBACK_TYPE] After editMessageText for type, elapsed: ${Date.now() - typeTime}ms, total: ${Date.now() - startTime}ms`,
+        );
       } else if (data === 'balance') {
+        const balanceTime = Date.now();
         const balance = await this.usersService.getUserBalance(userId);
+        console.log(
+          `[CALLBACK_BALANCE] After getUserBalance, elapsed: ${Date.now() - balanceTime}ms, total: ${Date.now() - startTime}ms`,
+        );
         const status = balance.isPro
           ? 'Pro ✅'
           : 'Free (попытки: ' + balance.freeAttempts + ')';
+        const editBalanceTime = Date.now();
         await typedCtx.editMessageText(
           `<b>💳 Ваш баланс</b>\n\n` +
             `Статус: <b>${status}</b>\n` +
@@ -176,11 +203,19 @@ export class TelegramService implements OnModuleInit {
             ...this.getBalanceMenu(balance.isPro),
           },
         );
+        console.log(
+          `[CALLBACK_BALANCE_EDIT] After editMessageText for balance, elapsed: ${Date.now() - editBalanceTime}ms, total: ${Date.now() - startTime}ms`,
+        );
       } else if (data === 'balance_pro') {
+        const proTime = Date.now();
         await typedCtx.answerCbQuery(
           'Ваша Pro подписка активна! Неограниченные анализы.',
         );
+        console.log(
+          `[CALLBACK_PRO] After answerCbQuery for balance_pro, elapsed: ${Date.now() - proTime}ms, total: ${Date.now() - startTime}ms`,
+        );
       } else if (data === 'subscribe') {
+        const subscribeTime = Date.now();
         await typedCtx.editMessageText(
           '<b>⭐ Подписка Pro</b>\n\n' +
             'Получите неограниченный доступ к анализу за 299 руб/мес.\n\n' +
@@ -196,16 +231,78 @@ export class TelegramService implements OnModuleInit {
             ]),
           },
         );
-      } else if (data === 'history') {
-        const analyses = await this.analysisService.getUserAnalyses(
-          Number(typedCtx.from.id),
-          5,
-          0,
+        console.log(
+          `[CALLBACK_SUBSCRIBE] After editMessageText for subscribe, elapsed: ${Date.now() - subscribeTime}ms, total: ${Date.now() - startTime}ms`,
         );
-        if (analyses.length === 0) {
+      } else if (data === 'history') {
+        const historyTime = Date.now();
+        try {
+          const userFindTime = Date.now();
+          const user = await this.usersService.findByTelegramId(userId);
+          console.log(
+            `[CALLBACK_HISTORY_USER] After findByTelegramId, elapsed: ${Date.now() - userFindTime}ms, total: ${Date.now() - startTime}ms`,
+          );
+          if (!user) {
+            await typedCtx.editMessageText(
+              '<b>❌ Пользователь не найден</b>\n\nИспользуйте /start для регистрации.',
+              {
+                parse_mode: 'HTML',
+                ...Markup.inlineKeyboard([
+                  [Markup.button.callback('🔙 Главное меню', 'main_menu')],
+                ]),
+              },
+            );
+            return;
+          }
+          const analysesTime = Date.now();
+          const analyses = await this.analysisService.getUserAnalyses(user.id, 5, 0);
+          console.log(
+            `[CALLBACK_HISTORY_ANALYSES] After getUserAnalyses, elapsed: ${Date.now() - analysesTime}ms, total: ${Date.now() - startTime}ms`,
+          );
+          if (analyses.length === 0) {
+            const emptyTime = Date.now();
+            await typedCtx.editMessageText(
+              '<b>📊 Ваша история пуста</b>\n\n' +
+                'Сделайте первый анализ, чтобы увидеть результаты здесь.',
+              {
+                parse_mode: 'HTML',
+                ...Markup.inlineKeyboard([
+                  [Markup.button.callback('🔙 Главное меню', 'main_menu')],
+                ]),
+              },
+            );
+            console.log(
+              `[CALLBACK_HISTORY_EMPTY] After edit for empty history, elapsed: ${Date.now() - emptyTime}ms, total: ${Date.now() - startTime}ms`,
+            );
+          } else {
+            let message = '<b>📊 Последние анализы</b>\n\n';
+            analyses.slice(0, 5).forEach((analysis, index) => {
+              message += `${index + 1}. ${analysis.type} (${analysis.createdAt.toLocaleDateString()})\n`;
+            });
+            message += '\nВыберите анализ для деталей:';
+            const keyboard = analyses
+              .slice(0, 5)
+              .map((analysis) => [
+                Markup.button.callback(
+                  `${analysis.type} #${analysis.id}`,
+                  `view_${analysis.id}`,
+                ),
+              ]);
+            keyboard.push([Markup.button.callback('🔙 Главное меню', 'main_menu')]);
+            const editHistTime = Date.now();
+            await typedCtx.editMessageText(message, {
+              parse_mode: 'HTML',
+              ...Markup.inlineKeyboard(keyboard),
+            });
+            console.log(
+              `[CALLBACK_HISTORY_EDIT] After editMessageText for history, elapsed: ${Date.now() - editHistTime}ms, total: ${Date.now() - startTime}ms`,
+            );
+          }
+        } catch (error) {
+          console.error('Error fetching user history:', error);
+          const errorTime = Date.now();
           await typedCtx.editMessageText(
-            '<b>📊 Ваша история пуста</b>\n\n' +
-              'Сделайте первый анализ, чтобы увидеть результаты здесь.',
+            '<b>❌ Ошибка загрузки истории</b>\n\nПопробуйте позже.',
             {
               parse_mode: 'HTML',
               ...Markup.inlineKeyboard([
@@ -213,30 +310,20 @@ export class TelegramService implements OnModuleInit {
               ]),
             },
           );
-        } else {
-          let message = '<b>📊 Последние анализы</b>\n\n';
-          analyses.slice(0, 5).forEach((analysis, index) => {
-            message += `${index + 1}. ${analysis.type} (${analysis.createdAt.toLocaleDateString()})\n`;
-          });
-          message += '\nВыберите анализ для деталей:';
-          const keyboard = analyses
-            .slice(0, 5)
-            .map((analysis) => [
-              Markup.button.callback(
-                `${analysis.type} #${analysis.id}`,
-                `view_${analysis.id}`,
-              ),
-            ]);
-          keyboard.push([Markup.button.callback('🔙 Главное меню', 'main_menu')]);
-          await typedCtx.editMessageText(message, {
-            parse_mode: 'HTML',
-            ...Markup.inlineKeyboard(keyboard),
-          });
+          console.log(
+            `[CALLBACK_HISTORY_ERROR] After error edit, elapsed: ${Date.now() - errorTime}ms, total: ${Date.now() - startTime}ms`,
+          );
         }
       } else if (data.startsWith('view_')) {
+        const viewTime = Date.now();
         const analysisId = parseInt(data.replace('view_', ''));
+        const analysisFetchTime = Date.now();
         const analysis = await this.analysisService.getAnalysisById(analysisId);
+        console.log(
+          `[CALLBACK_VIEW_FETCH] After getAnalysisById, elapsed: ${Date.now() - analysisFetchTime}ms, total: ${Date.now() - startTime}ms`,
+        );
         if (analysis) {
+          const viewEditTime = Date.now();
           await typedCtx.editMessageText(
             `<b>📋 Анализ #${analysisId}</b>\n\n` +
               `Тип: <b>${analysis.type}</b>\n` +
@@ -254,10 +341,14 @@ export class TelegramService implements OnModuleInit {
               ]),
             },
           );
+          console.log(
+            `[CALLBACK_VIEW_EDIT] After editMessageText for view, elapsed: ${Date.now() - viewEditTime}ms, total: ${Date.now() - startTime}ms`,
+          );
         } else {
           await typedCtx.answerCbQuery('Анализ не найден.');
         }
       } else if (data === 'help') {
+        const helpTime = Date.now();
         await typedCtx.editMessageText(
           '<b>❓ Помощь</b>\n\n' +
             '• <b>Анализ</b>: Выберите тип и отправьте фото\n' +
@@ -272,9 +363,20 @@ export class TelegramService implements OnModuleInit {
             ]),
           },
         );
+        console.log(
+          `[CALLBACK_HELP] After editMessageText for help, elapsed: ${Date.now() - helpTime}ms, total: ${Date.now() - startTime}ms`,
+        );
       }
 
+      const answerTime = Date.now();
       await typedCtx.answerCbQuery();
+      const totalElapsed = Date.now() - startTime;
+      console.log(`[CALLBACK_END] After answerCbQuery, total elapsed: ${totalElapsed}ms`);
+      if (totalElapsed > 10000) {
+        console.warn(
+          `[CALLBACK_WARNING] Handler took too long: ${totalElapsed}ms for data: ${data}`,
+        );
+      }
     });
 
     // /start — регистрация и главное меню
