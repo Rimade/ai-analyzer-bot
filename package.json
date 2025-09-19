@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "set NODE_ENV=test && jest --config ./test/jest-e2e.json --runInBand --detectOpenHandles",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "deploy:vercel": "npm install && npx prisma generate && npx prisma migrate deploy && npm run build && vercel --prod"
   },
   "dependencies": {
     "@appigram/yookassa-node": "^1.1.11",
