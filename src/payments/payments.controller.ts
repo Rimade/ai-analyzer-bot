@@ -42,6 +42,12 @@ export class PaymentsController {
     return { ok: true };
   }
 
+  @Post('yookassa/webhook')
+  async yookassaWebhook(@Body() body: any) {
+    await this.paymentsService.handleYookassaNotification(body);
+    return { status: 'ok' };
+  }
+
   @Get(':id')
   async getById(@Param('id') id: string) {
     return this.paymentsService.getPaymentById(Number(id));

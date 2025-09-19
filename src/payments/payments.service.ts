@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { PaymentStatus, Payment } from '@prisma/client';
+import { YooKassa } from '@appigram/yookassa-node';
+import * as crypto from 'crypto';
 
 export interface CreatePaymentDto {
   userId: number;
@@ -20,7 +22,9 @@ export interface PaymentResult {
 @Injectable()
 export class PaymentsService {
   private readonly stripeKey: string;
-  private readonly yookassaKey: string;
+  private readonly yookassaShopId: string;
+  private readonly yookassaSecretKey: string;
+  private yookassaClient: YooKassa;
 
   constructor(
     private prisma: PrismaService,
@@ -28,7 +32,9 @@ export class PaymentsService {
     private configService: ConfigService,
   ) {
     this.stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
-    this.yookassaKey = this.configService.get<string>('YOOKASSA_SECRET_KEY');
+    this.yookassaShopId = this.configService.get<string>('YOOKASSA_SHOP_ID');
+    this.yookassaSecretKey = this.configService.get<string>('YOOKASSA_SECRET_KEY');
+    this.yookassaClient = new YooKassa(this.yookassaShopId, this.yookassaSecretKey);
   }
 
   /**
@@ -52,7 +58,7 @@ export class PaymentsService {
       // Создаем платеж в выбранной платежной системе
       if (dto.provider === 'stripe' && this.stripeKey) {
         paymentUrl = await this.createStripePayment(payment);
-      } else if (dto.provider === 'yookassa' && this.yookassaKey) {
+      } else if (dto.provider === 'yookassa' && this.yookassaSecretKey) {
         paymentUrl = await this.createYookassaPayment(payment);
       } else {
         // Mock режим для разработки
@@ -91,9 +97,46 @@ export class PaymentsService {
    * Создать платеж через YooKassa
    */
   private async createYookassaPayment(payment: Payment): Promise<string> {
-    // TODO: Реализовать интеграцию с YooKassa
-    // Пока возвращаем mock URL
-    return `https://yoomoney.ru/checkout/mock_${payment.id}`;
+    if (!this.yookassaShopId || !this.yookassaSecretKey) {
+      throw new BadRequestException('YooKassa credentials not configured');
+    }
+
+    const idempotencyKey = payment.id.toString();
+    const paymentData = {
+      amount: {
+        value: payment.amount.toFixed(2),
+        currency: payment.currency,
+      },
+      confirmation: {
+        type: 'redirect',
+        return_url:
+          this.configService.get<string>('FRONTEND_URL') ||
+          'https://t.me/your_bot_username',
+      },
+      capture: true,
+      description: `Pro subscription for user ${payment.userId}`,
+      metadata: {
+        userId: payment.userId.toString(),
+      },
+    };
+
+    try {
+      const yookassaPayment = await this.yookassaClient.createPayment(
+        idempotencyKey,
+        paymentData,
+      );
+
+      // Update DB with external ID
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: { externalId: yookassaPayment.id },
+      });
+
+      return yookassaPayment.confirmation.confirmation_url;
+    } catch (error) {
+      console.error('YooKassa payment creation error:', error);
+      throw new BadRequestException('Failed to create YooKassa payment');
+    }
   }
 
   /**
@@ -127,6 +170,41 @@ export class PaymentsService {
       console.log(
         `Pro подписка активирована для пользователя ${payment.userId} после платежа ${paymentId}`,
       );
+    }
+  }
+
+  /**
+   * Обработать уведомление от YooKassa
+   */
+  async handleYookassaNotification(body: any): Promise<void> {
+    if (body.event !== 'payment.succeeded' && body.event !== 'payment.canceled') {
+      console.log('Ignored Yookassa event:', body.event);
+      return;
+    }
+
+    const externalId = body.object.id;
+    const status =
+      body.event === 'payment.succeeded' ? PaymentStatus.SUCCESS : PaymentStatus.FAILED;
+
+    const payment = await this.prisma.payment.findUnique({
+      where: { externalId },
+      include: { user: true },
+    });
+
+    if (!payment) {
+      console.error('Payment not found for externalId:', externalId);
+      return;
+    }
+
+    // Update status
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { status },
+    });
+
+    if (status === PaymentStatus.SUCCESS) {
+      await this.usersService.activateProSubscription(payment.userId);
+      console.log(`Pro activated for user ${payment.userId} via Yookassa ${externalId}`);
     }
   }
 

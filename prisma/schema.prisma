@@ -85,7 +85,7 @@ model Payment {
   user       User          @relation(fields: [userId], references: [id]) // Связь с пользователем
   userId     Int // Внешний ключ на пользователя
   provider   String // Провайдер платежа (например, ЮKassa)
-  externalId String? // Внешний ID платежа (опционально)
+  externalId String?       @unique // Внешний ID платежа (опционально)
   amount     Decimal       @db.Decimal(10, 2) // Сумма платежа
   currency   String        @default("RUB") // Валюта (по умолчанию рубли)
   status     PaymentStatus @default(PENDING) // Статус платежа

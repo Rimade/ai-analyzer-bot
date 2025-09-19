@@ -18,7 +18,7 @@ interface BotContext extends Context {
 
 @Injectable()
 export class TelegramService implements OnModuleInit {
-  private bot: Telegraf<BotContext>;
+  public bot: Telegraf<BotContext>;
 
   constructor(
     private configService: ConfigService,
@@ -44,15 +44,17 @@ export class TelegramService implements OnModuleInit {
     );
     this.setupHandlers();
 
-    // Не запускать бота в тестовой среде
-    if (process.env.NODE_ENV !== 'test') {
-      await this.bot.launch();
-      console.log('Telegram bot launched');
-    }
+    console.log('Telegram bot handlers set up');
+  }
 
-    // Graceful stop
-    process.once('SIGINT', () => this.bot.stop('SIGINT'));
-    process.once('SIGTERM', () => this.bot.stop('SIGTERM'));
+  async setWebhook(webhookUrl: string): Promise<void> {
+    await this.bot.telegram.setWebhook(webhookUrl);
+    console.log(`Webhook set to ${webhookUrl}`);
+  }
+
+  // Graceful stop (optional for serverless)
+  async stop(reason?: string): Promise<void> {
+    await this.bot.stop(reason);
   }
 
   private getMainMenu() {
