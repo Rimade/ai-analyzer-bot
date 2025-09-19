@@ -2,7 +2,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -10,72 +9,88 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// =============== Enums ===============
+// =============== Перечисления (Enums) ===============
 
+// Типы анализа, поддерживаемые системой
 enum AnalysisType {
-  MERCH
-  FOOD
-  CHARACTER
-  GENERAL
+  MERCH // Анализ мерча
+  FOOD // Анализ еды
+  CHARACTER // Анализ персонажа
+  GENERAL // Общий анализ
 }
 
+// Статус подписки пользователя
 enum SubStatus {
-  ACTIVE
-  INACTIVE
-  CANCELLED
+  ACTIVE // Активна
+  INACTIVE // Неактивна
+  CANCELLED // Отменена
 }
 
+// Статус платежа
 enum PaymentStatus {
-  PENDING
-  SUCCESS
-  FAILED
+  PENDING // В ожидании
+  SUCCESS // Успешно
+  FAILED // Неудачно
 }
 
-// =============== Models ===============
+// =============== Модели ===============
 
+// Модель пользователя
 model User {
-  id           Int           @id @default(autoincrement())
-  telegramId   String        @unique // ID из Telegram
-  username     String? // @username
-  firstName    String?
-  lastName     String?
-  isPro        Boolean       @default(false) // Подписка активна?
-  freeAttempts Int           @default(5) // Остаток бесплатных GPT анализов
-  subscription Subscription?
-  analyses     Analysis[] // История анализов
-  payments     Payment[] // История платежей
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id           Int           @id @default(autoincrement()) // Уникальный идентификатор
+  telegramId   String        @unique // Telegram ID пользователя
+  username     String? // Username в Telegram (опционально)
+  firstName    String? // Имя (опционально)
+  lastName     String? // Фамилия (опционально)
+  isPro        Boolean       @default(false) // Признак Pro-подписки
+  freeAttempts Int           @default(5) // Количество бесплатных попыток
+  subscription Subscription? // Связь с подпиской (один к одному)
+  analyses     Analysis[] // Связь с анализами (один ко многим)
+  payments     Payment[] // Связь с платежами (один ко многим)
+  createdAt    DateTime      @default(now()) // Дата создания
+  updatedAt    DateTime      @updatedAt // Дата последнего обновления
 }
 
+// Модель анализа
 model Analysis {
-  id          Int          @id @default(autoincrement())
-  user        User         @relation(fields: [userId], references: [id])
-  userId      Int
-  type        AnalysisType // merch | food | character ...
-  inputFileId String // file_id из Telegram
-  inputUrl    String? // ссылка на фото (если скачиваем)
-  resultText  String // итоговый анализ
-  score       Int? // 0–10, если применимо
-  createdAt   DateTime     @default(now())
+  id          Int          @id @default(autoincrement()) // Уникальный идентификатор
+  user        User         @relation(fields: [userId], references: [id]) // Связь с пользователем
+  userId      Int // Внешний ключ на пользователя
+  type        AnalysisType // Тип анализа
+  inputFileId String // ID файла во входных данных
+  inputUrl    String? // URL файла (опционально)
+  note        String? // Заметка пользователя (опционально)
+  resultText  String // Результат анализа (текст)
+  score       Int? // Оценка (опционально)
+  createdAt   DateTime     @default(now()) // Дата создания
+  updatedAt   DateTime?    @updatedAt // Дата последнего обновления (теперь опционально!)
+
+  @@index([userId]) // Индекс по userId для быстрого поиска анализов пользователя
 }
 
+// Модель подписки
 model Subscription {
-  id        Int       @id @default(autoincrement())
-  user      User      @relation(fields: [userId], references: [id])
-  userId    Int       @unique
-  status    SubStatus @default(ACTIVE)
-  startedAt DateTime  @default(now())
-  expiresAt DateTime?
+  id        Int       @id @default(autoincrement()) // Уникальный идентификатор
+  user      User      @relation(fields: [userId], references: [id]) // Связь с пользователем
+  userId    Int       @unique // Внешний ключ на пользователя (один к одному)
+  status    SubStatus @default(ACTIVE) // Статус подписки
+  startedAt DateTime  @default(now()) // Дата начала подписки
+  expiresAt DateTime? // Дата окончания подписки (опционально)
+  updatedAt DateTime  @updatedAt // Дата последнего обновления
 }
 
+// Модель платежа
 model Payment {
-  id        Int           @id @default(autoincrement())
-  user      User          @relation(fields: [userId], references: [id])
-  userId    Int
-  provider  String // yookassa | stripe
-  amount    Float
-  currency  String        @default("RUB")
-  status    PaymentStatus @default(PENDING)
-  createdAt DateTime      @default(now())
+  id         Int           @id @default(autoincrement()) // Уникальный идентификатор
+  user       User          @relation(fields: [userId], references: [id]) // Связь с пользователем
+  userId     Int // Внешний ключ на пользователя
+  provider   String // Провайдер платежа (например, ЮKassa)
+  externalId String?       @unique // Внешний ID платежа (опционально)
+  amount     Decimal       @db.Decimal(10, 2) // Сумма платежа
+  currency   String        @default("RUB") // Валюта (по умолчанию рубли)
+  status     PaymentStatus @default(PENDING) // Статус платежа
+  createdAt  DateTime      @default(now()) // Дата создания
+  updatedAt  DateTime      @updatedAt // Дата последнего обновления
+
+  @@index([userId]) // Индекс по userId для быстрого поиска платежей пользователя
 }
